@@ -84,24 +84,26 @@ class GazeEstimationAbstractModel_img_with_latent(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(512, out_features)
         )
+
         return  output_layer
 
     def forward(self, face_img, latent_vector):
 
-        feature = self.feature_extractor(face_img) # face
-        feature = feature.view(feature.shape[0], -1) # face feature flatten
+        feature = self.feature_extractor(face_img)
+        feature = feature.view(feature.shape[0], -1)
         
         b, c, h, w = latent_vector.size()
-        latent_vector = latent_vector.squeeze(1) # latent channel flatten
-        # print("before CA layer: ", latent_vector.size())
-        latent, prob = self.CA_layer(latent_vector)   # latent channel attention
-        # print("after CA: ", latent.size())
-        latent =  latent.view(latent.shape[0], -1)  # 
+        latent_vector = latent_vector.view(b, h, w)
+        latent = latent_vector[:, 2:6, :]
+        latent = self.CA_layer(latent)
+
+        # latent = [:, 2048:3072] -> [:, 1024:3584]
+        latent =  latent.view(latent.shape[0], -1)
 
         feature = torch.cat((feature, latent), 1)
         output = self.fc(feature)
 
-        return output, prob
+        return output
 
     @staticmethod
     def _init_weights(modules):
@@ -180,22 +182,24 @@ class GazeEstimationModel_img_with_Latent(GazeEstimationAbstractModel_img_with_l
             feature_extractor.avgpool
         )
 
+        # self.reduction = nn.Linear(10240, 300)
+
         for param in self.feature_extractor.parameters():
             param.requires_grad = True
 
-        self.CA_layer = CALayer(channel=9, kernel_size=1)
+        self.CA_layer = CALayer(channel=4, kernel_size=2)
 
-        self.fc = GazeEstimationAbstractModel_img_with_latent._create_fc_layers(in_features=6656, out_features=2)
+        self.fc = GazeEstimationAbstractModel_img_with_latent._create_fc_layers(in_features=4096, out_features=2)
         GazeEstimationAbstractModel_img_with_latent._init_weights(self.modules())
 
 class CALayer(nn.Module):
-    def __init__(self, channel, kernel_size=1):
+    def __init__(self, channel, kernel_size=2):
         super(CALayer, self).__init__()
         # global average pooling: feature --> point
         self.avg_pool = nn.AdaptiveAvgPool1d(1)
         # feature channel downscale and upscale --> channel weight
         self.adaptive_weight = nn.Sequential(
-            nn.Conv1d(channel, channel, kernel_size=1, stride=1, bias=True),
+            nn.Conv1d(channel, channel, kernel_size = 1, stride = 1, bias=True),
             nn.ReLU(inplace=True),
             nn.Sigmoid()
         )
@@ -203,21 +207,21 @@ class CALayer(nn.Module):
     def forward(self, x):
         y = self.avg_pool(x)
         y = self.adaptive_weight(y)
-        return x * y, y
+        return x * y
 
        
 def make_model(data_train, model):
-    if model == "Img_with_Latent":
-        print("Img_with_Latent")
-        return GazeEstimationModel_img_with_Latent()
+
     if model == "ResNet101":
         return GazeEstimationModelResnet101()
     elif model == "VGG16":
         return GazeEstimationModelVGG16()
-    
+    if model == "Img_with_Latent":
+        print("Img_with_Latent")
+        return GazeEstimationModel_img_with_Latent()
 
-    elif data_train == "Latent_train":
-        return GazeEstimationModelLatent()
+# elif data_train == "Latent_train":
+#     return GazeEstimationModelLatent()
 
 class GazeModel(nn.Module):
     def __init__(self, opt):
@@ -244,8 +248,8 @@ class GazeModel(nn.Module):
 
         print(f"The number of parameters is {num_parameter / 1000 ** 2:.2f}M \n")
 
-    def forward(self, imgs, latents):
-        return self.model(imgs, latents)
+    def forward(self, imgs):
+        return self.model(imgs)
 
     def count_parameters(self, model):
         param_sum = sum(p.numel() for p in model.parameters() if p.requires_grad)

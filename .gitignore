@@ -2,3 +2,6 @@
 *.txt
 *.jpg
 *.pt
+experiment/
+wandb/
+dataset

@@ -1,0 +1,4 @@
+.dataset
+*.txt
+*.jpg
+*.pt

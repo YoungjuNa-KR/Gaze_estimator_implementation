@@ -6,7 +6,7 @@ import cv2
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lrs
-from skimage.metrics import structural_similarity as ssim
+# from skimage.metrics import structural_similarity as ssim
 # from skimage.metrics import structural_similarity as ssim
 import os
 import matplotlib.pyplot as plt
@@ -76,21 +76,21 @@ def calc_psnr(sr, hr, scale, rgb_range, benchmark=False):
     return -10 * math.log10(mse)
 
 
-def SSIM(original, compressed): 
-    # Convert the images to grayscale
-    grayA = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
-    grayB = cv2.cvtColor(compressed, cv2.COLOR_BGR2GRAY)
+# def SSIM(original, compressed): 
+#     # Convert the images to grayscale
+#     grayA = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+#     grayB = cv2.cvtColor(compressed, cv2.COLOR_BGR2GRAY)
 
-    # Compute the Structural Similarity Index (SSIM) between the two
-    # images, ensuring that the difference image is returned
+#     # Compute the Structural Similarity Index (SSIM) between the two
+#     # images, ensuring that the difference image is returned
 
-    (score, diff) = ssim(grayA, grayB, full=True)
+#     (score, diff) = ssim(grayA, grayB, full=True)
 
-    # (score, diff) = compare_ssim(grayA, grayB, full=True)
-    diff = (diff * 255).astype("uint8") 
-    # 6. You can print only the score if you want
-    # print(f"SSIM value is {score}")
-    return score
+#     # (score, diff) = compare_ssim(grayA, grayB, full=True)
+#     diff = (diff * 255).astype("uint8") 
+#     # 6. You can print only the score if you want
+#     # print(f"SSIM value is {score}")
+#     return score
 
 
 

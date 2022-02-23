@@ -18,7 +18,7 @@ def computeGazeLoss(angular_out, gaze_batch_label):
     detected_number = angular_out.shape[0]
     for i in range(detected_number):
 
-        # COMPUTE PI ANGULAR ERROR
+        # COMPUTE PI ANGULAR ERROR``
         EST_pi = angular_out[i][0].cpu().detach().numpy()
         GT_pi = gaze_batch_label[i][0].cpu().detach().numpy()
 

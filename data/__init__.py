@@ -1,12 +1,16 @@
 import os
 from data.Latent import Latent
 from data.MPII import MPII
+from data.ETH import ETH
+from data.ETH_latent import ETH_latent
+from data.MPII_latent import MPII_latent
 from torchvision.datasets import ImageFolder
 from torchvision.transforms.functional import pil_to_tensor
 from torch.utils.data import DataLoader
-
+from sklearn.model_selection import train_test_split
 # from importlib import import_module
-
+import torchvision
+import torchvision.transforms as transforms
 
 class Data:
     def __init__(self, args):
@@ -38,40 +42,62 @@ class Data:
             # 하지만 trainer 파일에서 datasets의 __getitem__ 클래스 함수의 속성값을 이용하여 배치 단위의 파일명을 불러오도록
             # 코드를 작성하여 수정하였다.
 
-            if args.data_train == "MPII_train":
-                trainset = MPII(args.data_train)
-            elif args.data_train == "Latent_train":
-                trainset = Latent(args.data_train)
+            trans = transforms.Compose([
+                transforms.Resize((256)),
+                transforms.ToTensor(),  # this also convert pixel value from [0,255] to [0,1]
+                # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                #                     std=[0.229, 0.224, 0.225]),
+            ])
+
+            if "mpii" in (args.data_train).lower():
+                if "latent" in args.model.lower():
+                    print("mpii + latent")
+                    trainset = MPII_latent(args.data_train, transforms=trans)
+                else:
+                    trainset = MPII(args.data_train)
+            elif "eth" in (args.data_train).lower():
+                if "latent" in args.model.lower():
+                    print("train : eth + latent")
+                    trainset = ETH_latent(args.data_train, transforms=trans)
+                else:
+                    trainset = ETH(args.data_train)
             else:
-                print("데이터셋을 확인하세요 : MPII_train/Latent_train")
+                print("데이터셋을 확인하세요 :", args.data_train)
 
             self.loader_train = DataLoader(
                 trainset,
                 batch_size=args.batch_size,
                 num_workers=args.n_threads,
                 shuffle=True,
-                pin_memory=not args.cpu
+                pin_memory=not args.cpu,
             )
 
-        # trainset과 같은 맥락에서 사용된다. (공부용)
-        """
-        module_test = import_module('data.' +args.data_test.lower())
-        testset = getattr(module_test, args.data_test)(args, name=args.data_test ,train=False)
-        """
+            # trainset과 같은 맥락에서 사용된다. (공부용)
+            """
+            module_test = import_module('data.' +args.data_test.lower())
+            testset = getattr(module_test, args.data_test)(args, name=args.data_test ,train=False)
+            """
 
-        if args.data_test == "MPII_validation":
-                testset = MPII(args.data_test)
-        elif args.data_test == "Latent_validation":
-                testset = Latent(args.data_test)
-        else:
-            print("데이터셋을 확인하세요 : MPII/Latent")
+            if "mpii" in (args.data_test).lower():
+                if "latent" in (args.model).lower():
+                    testset = MPII_latent(args.data_test, transforms=trans)
+                else:
+                    testset = MPII(args.data_test)
+            
+            elif "eth" in (args.data_test).lower():
+                if "latent" in (args.model).lower():
+                    print("test : eth + latent")
+                    testset = ETH_latent(args.data_test, transforms=trans)
+                else:
+                    testset = ETH(args.data_test)
+            else:
+                print("데이터셋을 확인하세요 : ", args.data_test)
 
-        
-        self.loader_test = DataLoader(
-            testset,
-            batch_size=1,
-            num_workers=1,
-            shuffle=True,
-            pin_memory=not args.cpu
-        )
+            self.loader_test = DataLoader(
+                testset,
+                batch_size=1,
+                num_workers=1,
+                shuffle=True,
+                pin_memory=not args.cpu,
+            )
 
