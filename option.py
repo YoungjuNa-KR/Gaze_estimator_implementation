@@ -20,7 +20,7 @@ parser.add_argument('--data_train', type=str, default='img/inferenced_eth_with_f
 parser.add_argument('--data_test', type=str, default='img/inferenced_eth_with_ffhq_validation',
                     help='test dataset name')
 # 로그파일을 구분하기 위해 모델명을 입력하세요.
-parser.add_argument('--model', type=str, default='Img_with_Latent',
+parser.add_argument('--model', type=str, default='resnet18',
                     help='model name')
 parser.add_argument('--rgb_range', type=int, default=255,
                     help='maximum value of RGB')

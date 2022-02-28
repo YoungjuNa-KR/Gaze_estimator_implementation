@@ -42,24 +42,29 @@ class GazeEstimationAbstractModelLatent(nn.Module):
 
     def __init__(self):
         super(GazeEstimationAbstractModelLatent, self).__init__()
-
+        
+        
     @staticmethod
     def _create_fc_layers(in_features, out_features):
-
+        drop_prob = 0.3
+        
         output_layer = nn.Sequential(
             nn.Linear(in_features, 512),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=drop_prob, inplace=True),
             nn.Linear(512, 512),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=drop_prob, inplace=True),
             nn.Linear(512, out_features)
         )
 
         return  output_layer
 
     def forward(self, latent_vector):
-        latent_vector = latent_vector.view(latent_vector.shape[0], -1)
-        latent_vector = latent_vector[:, 1536:2560]
+        latent_vector = latent_vector.view(latent_vector.shape[0], -1) # flatten
+        # latent_vector = latent_vector[:, 1536:2560]
         # print(latent_vector.size())
+        
         output = self.fc(latent_vector)
 
         return output
@@ -136,6 +141,33 @@ class GazeEstimationModelResnet101(GazeEstimationAbstractModel):
 
         self.fc = GazeEstimationAbstractModel._create_fc_layers(in_features=300, out_features=2)
         GazeEstimationAbstractModel._init_weights(self.modules())
+        
+class GazeEstimationModelResnet18(GazeEstimationAbstractModel):
+    
+    def __init__(self, num_out=2):
+        super(GazeEstimationModelResnet101, self).__init__()
+        feature_extractor = models.resnet18(pretrained=True)
+
+        self.feature_extractor = nn.Sequential(
+            feature_extractor.conv1,
+            feature_extractor.bn1,
+            feature_extractor.relu,
+            feature_extractor.maxpool,
+            feature_extractor.layer1,
+            feature_extractor.layer2,
+            feature_extractor.layer3,
+            feature_extractor.layer4,
+            feature_extractor.avgpool
+        )
+        
+        self.reduction = nn.Linear(512, 300)
+
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = True
+
+
+        self.fc = GazeEstimationAbstractModel._create_fc_layers(in_features=300, out_features=2)
+        GazeEstimationAbstractModel._init_weights(self.modules())
 
 class GazeEstimationModelVGG16(GazeEstimationAbstractModel):
     def __init__(self, num_out=2):
@@ -159,7 +191,7 @@ class GazeEstimationModelVGG16(GazeEstimationAbstractModel):
 class GazeEstimationModelLatent(GazeEstimationAbstractModelLatent):
     def __init__(self, num_out=2):
         super(GazeEstimationModelLatent, self).__init__()
-        self.fc = GazeEstimationAbstractModelLatent._create_fc_layers(in_features=1024, out_features=2)
+        self.fc = GazeEstimationAbstractModelLatent._create_fc_layers(in_features=8192, out_features=2)
         GazeEstimationAbstractModelLatent._init_weights(self.modules())
 
 
@@ -207,16 +239,16 @@ class CALayer(nn.Module):
 
        
 def make_model(data_train, model):
-    if model == "Img_with_Latent":
+    if model.lower() == "img_with_latent":
         print("Img_with_Latent")
         return GazeEstimationModel_img_with_Latent()
-    if model == "ResNet101":
+    elif model.lower() == "resnet101":
         return GazeEstimationModelResnet101()
-    elif model == "VGG16":
+    elif model.lower() == "resnet18":
+        return GazeEstimationModelResnet18()
+    elif model.lower() == "vgg16":
         return GazeEstimationModelVGG16()
-    
-
-    elif data_train == "Latent_train":
+    elif model.lower() == "latent_only":
         return GazeEstimationModelLatent()
 
 class GazeModel(nn.Module):

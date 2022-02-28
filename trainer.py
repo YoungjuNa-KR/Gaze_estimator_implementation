@@ -21,7 +21,6 @@ import torchvision
 from getGazeLoss import *
 from sklearn.preprocessing import MinMaxScaler
 from torchsummary import summary
-import wandb
 
 matplotlib.use("Agg")
 class Trainer():
@@ -105,8 +104,6 @@ class Trainer():
             # labels = labels.to(torch.device("cuda"))
             img_names = samples["name"]
 
-            # latents = samples["latent"].to(torch.device("cuda"))
-
             # Gaze Estimator의 옵티마이저를 초기화 한다.
             self.optimizer.zero_grad() 
             
@@ -133,13 +130,11 @@ class Trainer():
                 
             gaze_loss, angular_error = computeGazeLoss(angular_out, labels)
             
-            total_prob += prob.mean(dim=0)
+            if "Latent" in self.opt.model: 
+                total_prob += prob.mean(dim=0)
             total_gaze_loss += gaze_loss
             total_angular_error += angular_error
 
-            
-            total_gaze_loss += gaze_loss
-            total_angular_error += angular_error
 
             # 역전파 연산을 통해 신경망을 업데이트 한다.
             gaze_loss.backward()
@@ -158,12 +153,14 @@ class Trainer():
 
 
         # 1 epoch의 학습 과정을 수행한 후 평균적인 손실 값과 오류 각도를 연산하고 로그를 남길 수 있도록 한다.
-        average_prob = total_prob.sum(dim=0) / (self.opt.batch_size)
+        if "Latent" in self.opt.model: 
+            average_prob = total_prob.sum(dim=0) / (self.opt.batch_size)
         average_gaze_loss =  total_gaze_loss / (self.opt.batch_size * (batch+1))
         average_angular_error = total_angular_error / (self.opt.batch_size * (batch+1))
 
-        print(type(average_prob))
-        print('Train Channel Probability : ', average_prob)
+        # print(type(average_prob))
+        if "Latent" in self.opt.model: 
+            print('Train Channel Probability : ', average_prob)
         print('Train gaze loss : ', float(average_gaze_loss))
         print('Train Angular loss : ', float(average_angular_error))
         
@@ -171,8 +168,14 @@ class Trainer():
         train_probability_path = "./experiment/Train_probability(%s).txt" %self.opt.model
         train_gaze_loss_path = "./experiment/Train_gaze_loss(%s).txt" %self.opt.model
         train_angular_error_path = "./experiment/Train_angular_loss(%s).txt" %self.opt.model
-        path_list = [train_probability_path, train_gaze_loss_path, train_angular_error_path]
-        log_list = [average_prob, float(average_gaze_loss), float(average_angular_error)]
+        
+        if "Latent" in self.opt.model: 
+            path_list = [train_probability_path, train_gaze_loss_path, train_angular_error_path]
+            log_list = [average_prob, float(average_gaze_loss), float(average_angular_error)]
+        else:
+            path_list = [train_gaze_loss_path, train_angular_error_path]
+            log_list = [float(average_gaze_loss), float(average_angular_error)]
+            
 
         for i in range(len(log_list)):
             txt = open(path_list[i], 'a')
@@ -185,31 +188,8 @@ class Trainer():
         self.error_last = self.loss.log[-1, -1]
         self.step()
         
-        print('Train gaze loss : ', float(average_gaze_loss))
-        print('Train Angular loss : ', float(average_angular_error))
         
-        # 손실 값과 오류 각도에 대한 로그를 남길 수 있도록 한다.
-        train_gaze_loss_path = "./experiment/Train_gaze_loss(%s).txt" %self.opt.model
-        train_angular_error_path = "./experiment/Train_angular_loss(%s).txt" %self.opt.model
-        path_list = [train_gaze_loss_path, train_angular_error_path]
-        log_list = [float(average_gaze_loss.item()), float(average_angular_error.item())]
-
-        for i in range(2):
-            txt = open(path_list[i], 'a')
-            log = str(log_list[i]) + "\n"
-            txt.write(log)
-            txt.close()
-
-        wandb.log({"train_gaze_loss": float(average_gaze_loss)})
-        wandb.log({"train_angular_gaze_loss": float(average_angular_error)})
-        
-        # 1 epoch의 종료에 따른 클래스 변수의 업데이트
-        self.loss.end_log(len(self.loader_train))
-        self.error_last = self.loss.log[-1, -1]
-        self.step()
-      
     def test(self):
-
         # 1 epoch의 평균 시선 추정 손실값과 오류 각도를 연산하기 위해 정의한다.
         total_gaze_loss = 0
         total_angular_error = 0
@@ -242,26 +222,31 @@ class Trainer():
                 labels = labels.type(torch.FloatTensor)
                 labels = labels.to(torch.device("cuda"))
             
-                if "Latent" in self.opt.model:
+                if "latent" in self.opt.model.lower():
                     latent = sample["latent"].type(torch.FloatTensor)
                     latent = latent.to(torch.device("cuda"))
                     
-                    # FFHQ 인코더일 때만 켜시오
-                    select_idx = [1, 2, 3, 4, 5, 6, 7, 9, 11] # 9개
-                    latent = latent[:,:, select_idx,:]
+                    if self.opt.model.lower() == "img_with_latent":       
+                        # FFHQ 인코더일 때만 켜시오
+                        select_idx = [1, 2, 3, 4, 5, 6, 7, 9, 11] # 9개
+                        latent = latent[:,:, select_idx,:]
 
                 # 배치 단위의 학습 데이터의 파일명을 통해서 GT 시선 라벨을 불러온다.
                 # 또한 불러온 라벨을 GPU 연산에 사용하기 위하여 cuda를 붙인다.
-                
-
+            
                 # 순전파 연산을 통해서 모델에 입력을 넣어준다
-                if "latent" in (self.opt.model).lower():
+                if self.opt.model.lower() == "Img_with_Latent":
                     angular_out, prob = self.model(img, latent) # without latent
-                else:
+                elif self.opt.model.lower() == "resnet18":
                     angular_out = self.model(img) # without latent
+                elif self.opt.model.lower() == "latent_only":
+                    angular_out = self.model(latent) # without latent
+                
                 
                 gaze_loss, angular_error = computeGazeLoss(angular_out, labels)
-                total_prob += prob
+                
+                if "latent" in self.opt.model.lower():
+                    total_prob += prob
                 total_gaze_loss += gaze_loss
                 total_angular_error += angular_error
                 
@@ -285,7 +270,9 @@ class Trainer():
         )
 
         # 추론 과정을 수행한 후 평균적인 손실 값과 오류 각도를 연산하고 로그를 남길 수 있도록 한다.
-        average_prob = total_prob / len(self.loader_test)  
+        if "latent" in self.opt.model.lower():
+            average_prob = total_prob / len(self.loader_test)  
+        
         average_gaze_loss = total_gaze_loss / len(self.loader_test)  
         average_angular_error = total_angular_error / len(self.loader_test)  
 
@@ -297,9 +284,13 @@ class Trainer():
         validation_probability_path = "./experiment/Validation_Channel Probability(%s).txt" %self.opt.model
         validation_gaze_loss_path = "./experiment/Validation_gaze_loss(%s).txt" %self.opt.model
         validation_angular_error_path = "./experiment/Validation_angular_loss(%s).txt" %self.opt.model
-        path_list = [validation_probability_path, validation_gaze_loss_path, validation_angular_error_path]
-        log_list = [average_prob, float(average_gaze_loss), float(average_angular_error)]
-
+        if "latent" in self.opt.model.lower():
+            path_list = [validation_probability_path, validation_gaze_loss_path, validation_angular_error_path]
+            log_list = [average_prob, float(average_gaze_loss), float(average_angular_error)]
+        else:
+            path_list = [validation_gaze_loss_path, validation_angular_error_path]
+            log_list = [float(average_gaze_loss), float(average_angular_error)]
+        
         for i in range(len(log_list)):
             txt = open(path_list[i], 'a')
             log = str(log_list[i]) + "\n"

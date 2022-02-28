@@ -22,8 +22,8 @@ if checkpoint.ok:
     t = Trainer(args, loader, gaze_model, loss, checkpoint)
 
     def main():
-        wandb.init(project='ETH_img_two_infer_latent_eth_with_gd_loss', entity='youngju', config={})
-        wandb.config.update(args) # add all of the arguments as config variables
+        # wandb.init(project='ETH_img_two_infer_latent_eth_with_gd_loss', entity='youngju', config={})
+        # wandb.config.update(args) # add all of the arguments as config variables
         
         while not t.terminate():
             t.train()

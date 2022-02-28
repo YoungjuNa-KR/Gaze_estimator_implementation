@@ -50,16 +50,25 @@ class Data:
             ])
 
             if "mpii" in (args.data_train).lower():
-                if "latent" in args.model.lower():
-                    print("mpii + latent")
+                if args.model.lower() == "latent_only":
+                    print("train : mpii latent only")
                     trainset = MPII_latent(args.data_train, transforms=trans)
+                elif args.model.lower() == "img_with_latent":
+                    print("train : mpii + latent")
+                    trainset = MPII_latent(args.data_train)
                 else:
+                    print("train : mpii img only")
                     trainset = MPII(args.data_train)
+                    
             elif "eth" in (args.data_train).lower():
-                if "latent" in args.model.lower():
-                    print("train : eth + latent")
+                if args.model.lower() == "latent_only":
+                    print("train : eth latent only")
                     trainset = ETH_latent(args.data_train, transforms=trans)
+                elif args.model.lower() == "img_with_latent":
+                    print("train : eth + latent")
+                    trainset = ETH_latent(args.data_train)
                 else:
+                    print("train : eth img only")
                     trainset = ETH(args.data_train)
             else:
                 print("데이터셋을 확인하세요 :", args.data_train)
@@ -79,24 +88,33 @@ class Data:
             """
 
             if "mpii" in (args.data_test).lower():
-                if "latent" in (args.model).lower():
+                if args.model.lower() == "latent_only":
+                    print("test : mpii latent only")
                     testset = MPII_latent(args.data_test, transforms=trans)
+                elif args.model.lower() == "img_with_latent":
+                    print("test : mpii + latent")
+                    testset = MPII_latent(args.data_test)
                 else:
+                    print("test : mpii img only")
                     testset = MPII(args.data_test)
-            
+                    
             elif "eth" in (args.data_test).lower():
-                if "latent" in (args.model).lower():
-                    print("test : eth + latent")
+                if args.model.lower() == "latent_only":
+                    print("test : eth latent only")
                     testset = ETH_latent(args.data_test, transforms=trans)
+                elif args.model.lower() == "img_with_latent":
+                    print("test : eth + latent")
+                    testset = ETH_latent(args.data_test)
                 else:
+                    print("test : eth img only")
                     testset = ETH(args.data_test)
             else:
-                print("데이터셋을 확인하세요 : ", args.data_test)
+                print("데이터셋을 확인하세요 :", args.data_test)
 
             self.loader_test = DataLoader(
                 testset,
                 batch_size=1,
-                num_workers=1,
+                num_workers=0,
                 shuffle=True,
                 pin_memory=not args.cpu,
             )
